@@ -1,0 +1,419 @@
+{
+  "name": "PQRS Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "f47d9703-326e-4c67-80ee-a7a731650ad6",
+      "name": "📨 Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "pqrs-telegram-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "rrYuMdYDRkV7g1Qa",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Escucha mensajes entrantes de Telegram. Captura chat_id, username, fecha y mensaje del usuario."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📨 Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "24e06a07-9bfa-4eec-98ac-1c273ca38778",
+      "name": "📤 Enviar Respuesta Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        0
+      ],
+      "webhookId": "c6451001-d44c-4218-a839-a44a0ed7bbf5",
+      "credentials": {
+        "telegramApi": {
+          "id": "rrYuMdYDRkV7g1Qa",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Envía la respuesta formateada al chat de Telegram del usuario usando el chat_id capturado."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "Eres un asistente virtual especializado en atención al cliente para usuarios de Mercado Libre, enfocado en resolver quejas, peticiones, reclamos, sugerencias y preguntas relacionadas con entregas de paquetes 📦.\n\nTu principal fuente de información debe ser la documentación almacenada en Supabase Vector Store. Utiliza esa documentación para generar respuestas precisas, coherentes y alineadas con las políticas y procedimientos oficiales. También puedes apoyarte en información confiable de la web si es necesario, pero nunca inventes información ni generes respuestas especulativas.\n\nInstrucciones de comportamiento:\n\n* Responde siempre en español.\n* Mantén un tono amable, profesional, empático y cercano 🤝.\n* Genera respuestas claras, útiles y concisas; evita textos demasiado largos.\n* Usa emojis de forma moderada e inteligente para hacer las respuestas más amigables, visualmente atractivas y agradables para el usuario ✨.\n* Organiza la información de manera estética y fácil de leer.\n* Si no encuentras información suficiente en la documentación, indícalo con honestidad y sugiere contactar soporte humano.\n* Prioriza ayudar al usuario de forma rápida y efectiva.\n* Evita repetir información innecesaria.\n* Adapta el tono según el contexto del usuario, manteniendo siempre cordialidad y profesionalismo.\n\nEjemplo de estilo de respuesta:\n\n📦 Hola, ¡gracias por contactarnos!\n\nRevisando la información disponible, tu paquete actualmente se encuentra en tránsito hacia el centro de distribución 🚚.\n\n⏳ La fecha estimada de entrega es entre el 12 y 13 de agosto.\n\nSi el estado no cambia dentro de ese plazo, puedes volver a escribirnos y con gusto te ayudaremos 😊.\n"
+        }
+      },
+      "id": "83684a21-4157-4822-90d2-90d06c8df43a",
+      "name": "Agente IA PQRS",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        256,
+        0
+      ],
+      "notes": "Agente principal de IA. Usa GPT-4o, herramientas de búsqueda vectorial y web. Clasifica el PQRS y genera la respuesta."
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.text }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.4,
+      "position": [
+        288,
+        176
+      ],
+      "id": "8f276d32-305b-443f-ac3a-161cac5cb09e",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "cy6e3KufpKP9Siip",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 1
+        }
+      },
+      "id": "70a58b8a-1967-4194-a055-570d3f751867",
+      "name": "GPT-5 mini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        192
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "ZmRqvTjPqJ5BeaT2",
+          "name": "n8n free OpenAI API credits"
+        }
+      },
+      "notes": "Modelo de lenguaje GPT-4o de OpenAI. Temperatura baja (0.3) para respuestas precisas y consistentes."
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "={{ $json.message.text }}",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        544,
+        176
+      ],
+      "id": "98c09e36-ae35-4e93-ac10-f870df454c56",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ORyDigmOQOcrmcpa",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "Base Documental ",
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        144,
+        464
+      ],
+      "id": "4bf7efc8-6a51-4e9f-96bb-22cf7f87ebe6",
+      "name": "Search files and folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "eC7zqCKoDzJJrMMW",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        544,
+        320
+      ],
+      "id": "0b1ae468-f48a-4701-a43c-a94fcac6aedf",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "ZmRqvTjPqJ5BeaT2",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "a9c2d0f9-ef49-467b-844d-f33ef03f89ad",
+      "name": "Búsqueda Web",
+      "type": "@n8n/n8n-nodes-langchain.toolSerpApi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        176
+      ],
+      "credentials": {
+        "serpApi": {
+          "id": "cDBM9TVK8GhePkPX",
+          "name": "SerpAPI account"
+        }
+      },
+      "notes": "Herramienta web secundaria usando SerpAPI. Solo se activa cuando la documentación interna es insuficiente."
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        448
+      ],
+      "id": "7bd8b2fc-bec3-4496-b75c-a71e56008af8",
+      "name": "Supabase Vector Store1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ORyDigmOQOcrmcpa",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        464,
+        672
+      ],
+      "id": "29331959-d0c2-4ddd-91d0-6a13ad6a9068",
+      "name": "Default Data Loader1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        688
+      ],
+      "id": "a21568da-0e8e-4924-b365-bdf2b29554df",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "ZmRqvTjPqJ5BeaT2",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "📨 Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Agente IA PQRS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente IA PQRS": {
+      "main": [
+        [
+          {
+            "node": "📤 Enviar Respuesta Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente IA PQRS",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-5 mini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente IA PQRS",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente IA PQRS",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Búsqueda Web": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente IA PQRS",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader1": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "25486d37-482c-4c40-8043-8a703ef1ab70",
+  "meta": {
+    "instanceId": "e1865de15b3513c5a999b08a16778364ffcefa19aa84cda454dda681e53e6c51"
+  },
+  "nodeGroups": [],
+  "id": "6PAUmuTZzu4AoFyb",
+  "tags": [
+    {
+      "updatedAt": "2026-06-07T17:10:37.728Z",
+      "createdAt": "2026-06-07T17:10:37.728Z",
+      "id": "9ZvSgAmcBlbmk5hr",
+      "name": "Telegram"
+    },
+    {
+      "updatedAt": "2026-06-07T17:10:37.756Z",
+      "createdAt": "2026-06-07T17:10:37.756Z",
+      "id": "OEGMrMBT0j1QUFLb",
+      "name": "PQRS"
+    },
+    {
+      "updatedAt": "2026-06-07T17:10:37.811Z",
+      "createdAt": "2026-06-07T17:10:37.811Z",
+      "id": "TRBOaFFl4ZEZ94XA",
+      "name": "RAG"
+    },
+    {
+      "updatedAt": "2026-06-07T17:10:37.834Z",
+      "createdAt": "2026-06-07T17:10:37.834Z",
+      "id": "cqt2c4bif30kC7Qn",
+      "name": "Chatbot"
+    },
+    {
+      "updatedAt": "2026-06-07T17:10:37.785Z",
+      "createdAt": "2026-06-07T17:10:37.785Z",
+      "id": "mE0qdVXoGTlTEcMt",
+      "name": "Supabase"
+    }
+  ]
+}
